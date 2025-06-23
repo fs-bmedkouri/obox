@@ -1,8 +1,28 @@
 #include "kernel.h"
 #include <circle/timer.h>
+#include <circle/string.h>
+#include <fatfs/ff.h>
+
+#define DRIVE "SD:"
+#define LOGFILE "log.txt"
+
+FIL log_file = {0};
+
+extern "C" {
+	void game_update(double);
+	void game_render(void);
+
+	void write_log(const char *str) {
+		f_write(&log_file, str, CString(str).GetLength(), 0);
+		f_sync(&log_file);
+	}
+}
 
 CKernel::CKernel (void)
-:	m_Screen (m_Options.GetWidth (), m_Options.GetHeight ())
+:	m_Screen (m_Options.GetWidth (), m_Options.GetHeight ()),
+	m_Timer(&m_Interrupt),
+	m_USBHCI(&m_Interrupt, &m_Timer, TRUE),
+	m_EMMC(&m_Interrupt, &m_Timer, 0)
 {
 }
 
@@ -12,11 +32,33 @@ CKernel::~CKernel (void)
 
 boolean CKernel::Initialize (void)
 {
-	return m_Screen.Initialize ();
+	boolean bOK = TRUE;
+	if (bOK)
+		bOK = m_Interrupt.Initialize();
+
+	if (bOK)
+		bOK = m_USBHCI.Initialize();
+		
+	if (bOK)
+		bOK = m_EMMC.Initialize();
+
+	if (bOK)
+		bOK = m_Screen.Initialize();
+
+	return bOK;
 }
 
 TShutdownMode CKernel::Run (void)
 {
+	FATFS emmc_fs;
+	if (f_mount(&emmc_fs, DRIVE, 1) != FR_OK)
+		return ShutdownHalt;
+
+	if (f_open(&log_file, LOGFILE, FA_WRITE|FA_CREATE_ALWAYS) != FR_OK)
+		return ShutdownHalt;
+
+	write_log("Enter main loop!\n");
+
 	// draw rectangle on screen
 	for (unsigned nPosX = 0; nPosX < m_Screen.GetWidth (); nPosX++)
 	{
@@ -40,12 +82,12 @@ TShutdownMode CKernel::Run (void)
 
 	while (1)
 	{
-		m_ActLED.On ();
-		CTimer::SimpleMsDelay (100);
-
-		m_ActLED.Off ();
-		CTimer::SimpleMsDelay (100);
+		game_update(0.0);
+		game_render();
 	}
+
+	f_close(&log_file);
+	f_unmount(DRIVE);
 
 	return ShutdownHalt;
 }

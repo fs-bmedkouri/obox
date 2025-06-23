@@ -6,6 +6,9 @@
 #include <circle/devicenameservice.h>
 #include <circle/screen.h>
 #include <circle/types.h>
+#include <circle/usb/usbhcidevice.h>
+#include <circle/interrupt.h>
+#include <SDCard/emmc.h>
 
 enum TShutdownMode
 {
@@ -25,11 +28,13 @@ public:
 	TShutdownMode Run (void);
 
 private:
-	// do not change this order
-	CActLED			m_ActLED;
 	CKernelOptions		m_Options;
 	CDeviceNameService	m_DeviceNameService;
 	CScreenDevice		m_Screen;
+	CInterruptSystem	m_Interrupt;
+	CTimer				m_Timer;
+	CUSBHCIDevice		m_USBHCI;
+	CEMMCDevice			m_EMMC;
 };
 
 #endif

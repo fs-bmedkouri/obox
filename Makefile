@@ -39,10 +39,16 @@ build/sdcard: .cache/circle/Config.mk
 	cp $(CIRCLEHOME)/boot/config64.txt build/sdcard/config.txt
 
 circle_pi3: .cache/circle/Config.mk
-	cd .cache/circle && PATH=$(TOOLPATH) CIRCLEHOME=$(CIRCLEHOME) ./makeall
+	cd .cache/circle && PATH=$(TOOLPATH) CIRCLEHOME=$(CIRCLEHOME) ./makeall && \
+		PATH=$(TOOLPATH) CIRCLEHOME=$(CIRCLEHOME) make -C addon/fatfs && \
+		PATH=$(TOOLPATH) CIRCLEHOME=$(CIRCLEHOME) make -C addon/SDCard
 
-game: .cache/odin
-	./.cache/odin/odin build game -out:.cache/game.o -build-mode:object -target:freestanding_arm64 -o:speed -collection:engine=engine
+assets:
+	mkdir -p assets/static assets/dynamic build/sdcard/assets
+	-cp assets/dynamic/* build/sdcard/assets
+	
+game: .cache/odin assets
+	./.cache/odin/odin build game -out:.cache/game.o -build-mode:object -target:freestanding_arm64 -o:speed -collection:engine=engine -collection:assets=assets/static
 
 kernel: build/sdcard circle_pi3 game
 	PATH=$(TOOLPATH) make -C engine/kernel
@@ -50,6 +56,9 @@ kernel: build/sdcard circle_pi3 game
 
 clean:
 	-$(MAKE) -C engine/kernel clean
-	rm -rf .cache build
+	rm -rf build
 
-.PHONY: clean game kernel
+distclean: clean
+	rm -rf .cache
+
+.PHONY: clean distclean assets game kernel
