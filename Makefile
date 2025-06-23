@@ -48,7 +48,7 @@ assets:
 	-cp assets/dynamic/* build/sdcard/assets
 	
 game: .cache/odin assets
-	./.cache/odin/odin build game -out:.cache/game.o -build-mode:object -target:freestanding_arm64 -o:speed -collection:engine=engine -collection:assets=assets/static
+	./.cache/odin/odin build engine/kernel/entry -out:.cache/game.o -build-mode:object -target:freestanding_arm64 -o:speed -collection:engine=engine -collection:assets=assets/static
 
 kernel: build/sdcard circle_pi3 game
 	PATH=$(TOOLPATH) make -C engine/kernel
