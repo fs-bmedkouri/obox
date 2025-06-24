@@ -20,8 +20,10 @@ struct fb_definition {
 struct fb_definition framebuffer = {0};
 
 extern "C" {
+	void game_startup(void);
 	void game_update(int64_t);
 	void game_render(void);
+	void game_shutdown(void);
 }
 
 extern "C" {
@@ -57,8 +59,10 @@ CKernel::CKernel (void)
 	m_EMMC(&m_Interrupt, &m_Timer, 0)
 {
 	m_pFrameBuffer = new CBcmFrameBuffer(m_Options.GetWidth(), m_Options.GetHeight(), 32);
-	if (!m_pFrameBuffer->Initialize())
+	if (!m_pFrameBuffer->Initialize()) {
 		delete m_pFrameBuffer;
+		m_pFrameBuffer = 0;
+	}
 }
 
 CKernel::~CKernel (void)
@@ -99,15 +103,19 @@ TShutdownMode CKernel::Run (void)
 	if (!m_pFrameBuffer) {
 		kernel_write_log("Could not initialize framebuffer!\n");
 		goto shutdown;
-	} else {
+	} else if (m_pFrameBuffer->GetDepth() != 32) {
+		kernel_write_log("Invalid framebuffer format!\n");
+		goto shutdown;
+	} else {	
 		framebuffer.ptr = (void*)(u64)m_pFrameBuffer->GetBuffer();
 		framebuffer.pitch = m_pFrameBuffer->GetPitch();
-		framebuffer.width = m_Options.GetWidth();
-		framebuffer.height = m_Options.GetHeight();
+		framebuffer.width = m_pFrameBuffer->GetWidth();
+		framebuffer.height = m_pFrameBuffer->GetHeight();
 	}
 
 	update_ticks = render_ticks = CTimer::GetClockTicks64();
-	
+
+	game_startup();
 	while (running)
 	{
 		u64 now = CTimer::GetClockTicks64();
@@ -124,6 +132,7 @@ TShutdownMode CKernel::Run (void)
 			game_render();
 		}
 	}
+	game_shutdown();
 
 shutdown:
 

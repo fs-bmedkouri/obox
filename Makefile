@@ -6,6 +6,8 @@ CIRCLEHOME = "$(MKPATH)"/.cache/circle
 TOOLPATH = "$(PATH)":"$(MKPATH)"/.cache/toolchain/bin
 
 GAME ?= sample
+RPI ?= 3
+ODIN_VET ?= -vet-semicolon -vet-shadowing -vet-style -vet-tabs -vet-unused
 
 all: kernel
 
@@ -28,7 +30,7 @@ all: kernel
 	cd .cache && mkdir -p circle && tar -xf circle.tar.gz -C ./circle --strip-components=1
 
 .cache/circle/Config.mk: .cache/circle .cache/toolchain
-	cd .cache/circle && PATH=$(TOOLPATH) CIRCLEHOME=$(CIRCLEHOME) ./configure -r 3 -p aarch64-none-elf-
+	cd .cache/circle && PATH=$(TOOLPATH) CIRCLEHOME=$(CIRCLEHOME) ./configure -r $(RPI) -p aarch64-none-elf-
 	
 build/sdcard: .cache/circle/Config.mk
 	PATH=$(TOOLPATH) CIRCLEHOME=$(CIRCLEHOME) make -C $(CIRCLEHOME)/boot
@@ -40,7 +42,7 @@ build/sdcard: .cache/circle/Config.mk
 	cp $(CIRCLEHOME)/boot/*.elf build/sdcard
 	cp $(CIRCLEHOME)/boot/config64.txt build/sdcard/config.txt
 
-circle_pi3: .cache/circle/Config.mk
+circle: .cache/circle/Config.mk
 	cd .cache/circle && PATH=$(TOOLPATH) CIRCLEHOME=$(CIRCLEHOME) ./makeall && \
 		PATH=$(TOOLPATH) CIRCLEHOME=$(CIRCLEHOME) make -C addon/fatfs && \
 		PATH=$(TOOLPATH) CIRCLEHOME=$(CIRCLEHOME) make -C addon/SDCard
@@ -50,11 +52,11 @@ assets:
 	-cp assets/dynamic/* build/sdcard/assets
 	
 game: .cache/odin assets
-	./.cache/odin/odin build engine/kernel/entry -out:.cache/game.o -build-mode:object -target:freestanding_arm64 -o:speed -collection:engine=engine -collection:game=games/$(GAME) -collection:assets=assets/static
+	./.cache/odin/odin build engine/kernel/entry -out:.cache/game.o -build-mode:object -target:freestanding_arm64 -o:speed -collection:engine=engine -collection:game=games/$(GAME) -collection:assets=assets/static $(ODIN_VET)
 
-kernel: build/sdcard circle_pi3 game
+kernel: build/sdcard circle game
 	PATH=$(TOOLPATH) make -C engine/kernel
-	cp engine/kernel/kernel8.img build/sdcard
+	cp engine/kernel/kernel*.img build/sdcard
 
 clean:
 	-$(MAKE) -C engine/kernel clean
