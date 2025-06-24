@@ -9,6 +9,7 @@ import "engine:kernel"
 import game "game:."
 
 @(require) import "engine:framebuffer"
+@(require) import "engine:gamepad"
 
 @(export)
 game_startup :: proc "c" () {

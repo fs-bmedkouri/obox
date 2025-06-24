@@ -2,6 +2,7 @@
 #include <circle/timer.h>
 #include <circle/string.h>
 #include <circle/memory.h>
+#include <circle/synchronize.h>
 #include <fatfs/ff.h>
 
 FIL log_file = {0};
@@ -49,6 +50,23 @@ extern "C" {
 	struct fb_definition *kernel_fb_definition(void) {
 		return &framebuffer;
 	}
+
+	unsigned kernel_read_pad(int index) {
+		unsigned buttons = 0;
+		if (index < 0 || index >= MAX_GAMEPADS)
+			return buttons;
+
+		DisableIRQs();
+		DisableFIQs();
+
+		// Just read the digital buttons for now.
+		buttons = gp_states[index].buttons;
+		
+		EnableFIQs();
+		EnableIRQs();
+
+		return buttons;
+	}
 }
 
 CKernel::CKernel (void)
@@ -80,8 +98,11 @@ boolean CKernel::Initialize (void)
 		bOK = m_Interrupt.Initialize();
 
 	if (bOK)
+		bOK = m_Timer.Initialize();
+
+	if (bOK)
 		bOK = m_USBHCI.Initialize();
-		
+
 	if (bOK)
 		bOK = m_EMMC.Initialize();
 
@@ -139,7 +160,7 @@ TShutdownMode CKernel::Run (void)
 
 			m_pGamePad[i]->RegisterRemovedHandler(GamePadRemovedHandler, this);
 			m_pGamePad[i]->RegisterStatusHandler(GamePadStatusHandler);
-		}		
+		}
 	
 		u64 now = CTimer::GetClockTicks64();
 		int64_t dt = (int64_t)(((double)(now - update_ticks) / (double)CLOCKHZ) * 1000000.0) * 1000;
@@ -168,6 +189,7 @@ shutdown:
 void CKernel::GamePadStatusHandler (unsigned nDeviceIndex, const TGamePadState *pState)
 {
 	kernel_write_log("Gamepad input!\n");
+
 	gp_states[nDeviceIndex] = *pState;
 }
 
