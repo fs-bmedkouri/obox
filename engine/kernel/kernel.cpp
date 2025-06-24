@@ -4,9 +4,6 @@
 #include <circle/memory.h>
 #include <fatfs/ff.h>
 
-#define DRIVE "SD:"
-#define LOGFILE "log.txt"
-
 FIL log_file = {0};
 bool running = true;
 
@@ -18,6 +15,7 @@ struct fb_definition {
 };
 
 struct fb_definition framebuffer = {0};
+TGamePadState gp_states[MAX_GAMEPADS] = {0};
 
 extern "C" {
 	void game_startup(void);
@@ -62,6 +60,10 @@ CKernel::CKernel (void)
 	if (!m_pFrameBuffer->Initialize()) {
 		delete m_pFrameBuffer;
 		m_pFrameBuffer = 0;
+	}
+
+	for (int i = 0; i < MAX_GAMEPADS; i++) {
+		m_pGamePad[i] = 0;
 	}
 }
 
@@ -118,6 +120,27 @@ TShutdownMode CKernel::Run (void)
 	game_startup();
 	while (running)
 	{
+		for (int i = 0; m_USBHCI.UpdatePlugAndPlay() && i < MAX_GAMEPADS; i++) {
+			if (m_pGamePad[i] != 0)
+				continue;
+			
+			if ((m_pGamePad[i] = (CUSBGamePadDevice*)m_DeviceNameService.GetDevice("upad", i + 1, FALSE)) == 0)
+				continue;
+
+			const TGamePadState *pState = m_pGamePad[i]->GetInitialState();
+			if (!pState) {
+				kernel_write_log("Could not initialize gamepad!\n");
+				m_pGamePad[i] = 0;
+				continue;
+			} else {
+				kernel_write_log("Gamepad connected!\n");
+				gp_states[i] = *pState;
+			}
+
+			m_pGamePad[i]->RegisterRemovedHandler(GamePadRemovedHandler, this);
+			m_pGamePad[i]->RegisterStatusHandler(GamePadStatusHandler);
+		}		
+	
 		u64 now = CTimer::GetClockTicks64();
 		int64_t dt = (int64_t)(((double)(now - update_ticks) / (double)CLOCKHZ) * 1000000.0) * 1000;
 		if (dt <= 0)
@@ -127,7 +150,7 @@ TShutdownMode CKernel::Run (void)
 		game_update(dt);
 		
 		// TODO: Lets move this to another CPU core at some point.
-		if ((now - render_ticks) >= (CLOCKHZ / 60)) { 
+		if ((now - render_ticks) >= (CLOCKHZ / 60)) {
 			render_ticks = now;
 			game_render();
 		}
@@ -140,4 +163,23 @@ shutdown:
 	f_unmount(DRIVE);
 	
 	return ShutdownHalt;
+}
+
+void CKernel::GamePadStatusHandler (unsigned nDeviceIndex, const TGamePadState *pState)
+{
+	kernel_write_log("Gamepad input!\n");
+	gp_states[nDeviceIndex] = *pState;
+}
+
+void CKernel::GamePadRemovedHandler (CDevice *pDevice, void *pContext)
+{
+	CKernel *pThis = (CKernel*)pContext;
+
+	for (int i = 0; i < MAX_GAMEPADS; i++) {
+		if (pThis->m_pGamePad[i] == (CUSBGamePadDevice*)pDevice) {
+			kernel_write_log("Gamepad removed!\n");
+			pThis->m_pGamePad[i] = 0;
+			break;
+		}
+	}
 }

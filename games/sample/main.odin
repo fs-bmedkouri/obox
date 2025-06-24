@@ -8,7 +8,7 @@ import fb "engine:framebuffer"
 @(init)
 initialize :: proc() {
 	// Logging is not setup and sdcard assets can not be loaded here.
-	// You can make use of static assests and allocate memory though.
+	// You can make use of static assets and allocate memory though.
 }
 
 startup :: proc() {
