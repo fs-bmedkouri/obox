@@ -5,6 +5,8 @@ MKPATH = $(dir $(realpath $(lastword $(MAKEFILE_LIST))))
 CIRCLEHOME = "$(MKPATH)"/.cache/circle
 TOOLPATH = "$(PATH)":"$(MKPATH)"/.cache/toolchain/bin
 
+GAME ?= sample
+
 all: kernel
 
 .cache/odin:
@@ -48,7 +50,7 @@ assets:
 	-cp assets/dynamic/* build/sdcard/assets
 	
 game: .cache/odin assets
-	./.cache/odin/odin build engine/kernel/entry -out:.cache/game.o -build-mode:object -target:freestanding_arm64 -o:speed -collection:engine=engine -collection:assets=assets/static
+	./.cache/odin/odin build engine/kernel/entry -out:.cache/game.o -build-mode:object -target:freestanding_arm64 -o:speed -collection:engine=engine -collection:game=games/$(GAME) -collection:assets=assets/static
 
 kernel: build/sdcard circle_pi3 game
 	PATH=$(TOOLPATH) make -C engine/kernel

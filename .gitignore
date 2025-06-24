@@ -1,0 +1,9 @@
+.cache
+build
+
+engine/kernel/*.d
+engine/kernel/*.o
+engine/kernel/*.elf
+engine/kernel/*.img
+engine/kernel/*.lst
+engine/kernel/*.map

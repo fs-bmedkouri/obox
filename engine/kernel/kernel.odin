@@ -9,25 +9,23 @@ import "core:log"
 import "core:slice"
 import "core:strings"
 
+LOG_BUFFER_SIZE :: 1024
+
 default_temp_allocator: mem.Arena
 log_buffer: [dynamic]byte
 
-alloc_proc_t :: #type proc "c" (c.size_t) -> rawptr
-dealloc_proc_t :: #type proc "c" (rawptr)
-
-alloc_proc: alloc_proc_t
-dealloc_proc: dealloc_proc_t
-
-LOG_BUFFER_SIZE :: 1024
-log_proc_t :: #type proc "c" (cstring)
+foreign {
+	kernel_sleep_ms :: proc "c" (c.int64_t) ---
+	kernel_halt :: proc "c" () ---
+	kernel_write_log :: proc "c" (cstring) ---
+	kernel_alloc :: proc "c" (c.size_t) -> rawptr ---
+	kernel_dealloc :: proc "c" (rawptr) ---
+}
 
 @(export)
-odin_startup_runtime :: proc "c" (alloc: alloc_proc_t, dealloc: dealloc_proc_t, log_proc: log_proc_t) {
+odin_startup_runtime :: proc "c" () {
 	context = default_context
 
-	alloc_proc = alloc
-	dealloc_proc = dealloc
-	
 	context.allocator.procedure = proc(
 		allocator_data: rawptr,
 		mode: runtime.Allocator_Mode,
@@ -40,10 +38,10 @@ odin_startup_runtime :: proc "c" (alloc: alloc_proc_t, dealloc: dealloc_proc_t, 
 		runtime.Allocator_Error,
 	) {
 		if mode == .Free {
-			dealloc_proc(old_memory)
+			kernel_dealloc(old_memory)
 			return nil, .None
 		}
-		ptr := alloc_proc(c.size_t(size))
+		ptr := kernel_alloc(c.size_t(size))
 		if ptr == nil {
 			panic("Out of memory!")
 		}
@@ -79,7 +77,7 @@ odin_startup_runtime :: proc "c" (alloc: alloc_proc_t, dealloc: dealloc_proc_t, 
 	}
 
 	log_buffer = make([dynamic]byte, LOG_BUFFER_SIZE, LOG_BUFFER_SIZE)
-	context.logger = runtime.Logger{logger_proc, rawptr(log_proc), .Debug, nil}
+	context.logger = runtime.Logger{logger_proc, nil, .Debug, nil}
 
 	default_context = context
 	#force_no_inline runtime._startup_runtime()
@@ -126,5 +124,5 @@ logger_proc :: proc(data: rawptr, level: runtime.Logger_Level, text: string, opt
 	cstr, err := strings.to_cstring(&builder)
 	assert(err == nil)
 	
-	log_proc_t(data)(cstr)
+	kernel_write_log(cstr)
 }

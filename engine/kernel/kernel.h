@@ -30,11 +30,12 @@ public:
 private:
 	CKernelOptions		m_Options;
 	CDeviceNameService	m_DeviceNameService;
-	CScreenDevice		m_Screen;
 	CInterruptSystem	m_Interrupt;
 	CTimer				m_Timer;
 	CUSBHCIDevice		m_USBHCI;
 	CEMMCDevice			m_EMMC;
+
+	CBcmFrameBuffer 	*m_pFrameBuffer;
 };
 
 #endif
