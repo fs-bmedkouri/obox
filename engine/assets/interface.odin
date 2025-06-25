@@ -5,7 +5,7 @@ import "core:slice"
 import "core:strings"
 
 load :: proc(name: string) -> (data: []byte, ok: bool) {
-	path, err := strings.join({name}, "/", context.temp_allocator)
+	path, err := strings.join({name}, "assets/", context.temp_allocator)
 	if err != .None {
 		return
 	}

@@ -3,7 +3,7 @@ package framebuffer
 import "core:slice"
 
 Color :: struct #packed {
-	r, g, b, _: u8,
+	b, g, r, _: u8,
 }
 
 memory :: proc() -> []byte {
