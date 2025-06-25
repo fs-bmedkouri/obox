@@ -12,43 +12,44 @@ square_pos := [2]f64{100, 100}
 bg_color_index: int
 square_color_index := 1
 
+button_state: gamepad.Buttons
+
 @(init)
 initialize :: proc() {
-	// Logging is not setup and sdcard assets can not be loaded here.
-	// You can make use of static assets and allocate memory though.
-}
-
-startup :: proc() {
 	log.info("Hello World!")
 }
 
 update :: proc(dt: time.Duration) {
 	buttons := gamepad.read(0)
-	if buttons != nil {
-		log.info("Gamepad buttons: ", buttons)
 
-		ms := time.duration_milliseconds(dt)
+	ms := time.duration_milliseconds(dt)
+	switch {
+		case .LEFT in buttons:
+			square_pos[0] -= SQUARE_SPEED * ms
+		case .RIGHT in buttons:
+			square_pos[0] += SQUARE_SPEED * ms
+		case .UP in buttons:
+			square_pos[1] -= SQUARE_SPEED * ms
+		case .DOWN in buttons:
+			square_pos[1] += SQUARE_SPEED * ms
+	}
+
+	if buttons != button_state {
+		log.info("Gamepad button state: ", buttons)
 		switch {
-			case .LEFT in buttons:
-				square_pos[0] -= SQUARE_SPEED * ms
-			case .RIGHT in buttons:
-				square_pos[0] += SQUARE_SPEED * ms
-			case .UP in buttons:
-				square_pos[1] -= SQUARE_SPEED * ms
-			case .DOWN in buttons:
-				square_pos[1] += SQUARE_SPEED * ms
 			case .A in buttons:
 				square_color_index += 1
 			case .B in buttons:
 				bg_color_index += 1
 		}
+		button_state = buttons
 	}
 }
 
 render :: proc() {
 	colors := [4]fb.Color{
 		{0xFF, 0xFF, 0xFF, 0},
-		{0x00, 0xFF, 0xFF, 0},
+		{0x00, 0x00, 0xFF, 0},
 		{0xFF, 0x00, 0xFF, 0},
 		{0xFF, 0xFF, 0x00, 0},
 	}
@@ -59,6 +60,8 @@ render :: proc() {
 			fb.put_pixel(int(square_pos[0]) + x, int(square_pos[1]) + y, colors[square_color_index % len(colors)])
 		}
 	}
+
+	fb.swap()
 }
 
 shutdown :: proc() {

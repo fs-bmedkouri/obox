@@ -13,12 +13,6 @@ import game "game:."
 @(require) import "engine:assets"
 
 @(export)
-game_startup :: proc "c" () {
-	context = kernel.default_context
-	game.startup()
-}
-
-@(export)
 game_update :: proc "c" (dt: c.int64_t) {
 	context = kernel.default_context
 	free_all(context.temp_allocator)

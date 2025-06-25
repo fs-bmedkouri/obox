@@ -9,6 +9,8 @@ FIL log_file = {0};
 bool running = TRUE;
 int last_asset_len = 0;
 
+CBcmFrameBuffer *CKernel::s_pFrameBuffer(0);
+
 struct fb_definition {
 	void *ptr;
 	int width;
@@ -20,7 +22,7 @@ struct fb_definition framebuffer = {0};
 TGamePadState gp_states[MAX_GAMEPADS] = {0};
 
 extern "C" {
-	void game_startup(void);
+	void odin_startup_runtime(void);
 	void game_update(int64_t);
 	void game_render(void);
 	void game_shutdown(void);
@@ -50,6 +52,10 @@ extern "C" {
 
 	struct fb_definition *kernel_fb_definition(void) {
 		return &framebuffer;
+	}
+
+	void kernel_wait_for_vsync(void) {
+		CKernel::s_pFrameBuffer->WaitForVerticalSync();	
 	}
 
 	unsigned kernel_read_pad(int index) {
@@ -104,10 +110,10 @@ CKernel::CKernel (void)
 	m_USBHCI(&m_Interrupt, &m_Timer, TRUE),
 	m_EMMC(&m_Interrupt, &m_Timer, 0)
 {
-	m_pFrameBuffer = new CBcmFrameBuffer(m_Options.GetWidth(), m_Options.GetHeight(), 32, 0, 0, 0, TRUE);
-	if (!m_pFrameBuffer->Initialize()) {
-		delete m_pFrameBuffer;
-		m_pFrameBuffer = 0;
+	s_pFrameBuffer = new CBcmFrameBuffer(m_Options.GetWidth(), m_Options.GetHeight(), 32);
+	if (!s_pFrameBuffer->Initialize()) {
+		delete s_pFrameBuffer;
+		s_pFrameBuffer = 0;
 	}
 
 	for (int i = 0; i < MAX_GAMEPADS; i++) {
@@ -117,8 +123,8 @@ CKernel::CKernel (void)
 
 CKernel::~CKernel (void)
 {
-	if (m_pFrameBuffer)
-		delete m_pFrameBuffer;
+	if (s_pFrameBuffer)
+		delete s_pFrameBuffer;
 }
 
 boolean CKernel::Initialize (void)
@@ -153,22 +159,22 @@ TShutdownMode CKernel::Run (void)
 
 	kernel_write_log("Logging initialize!\n");
 
-	if (!m_pFrameBuffer) {
+	if (!s_pFrameBuffer) {
 		kernel_write_log("Could not initialize framebuffer!\n");
 		goto shutdown;
-	} else if (m_pFrameBuffer->GetDepth() != 32) {
+	} else if (s_pFrameBuffer->GetDepth() != 32) {
 		kernel_write_log("Invalid framebuffer format!\n");
 		goto shutdown;
 	} else {	
-		framebuffer.ptr = (void*)(u64)m_pFrameBuffer->GetBuffer();
-		framebuffer.pitch = m_pFrameBuffer->GetPitch();
-		framebuffer.width = m_pFrameBuffer->GetWidth();
-		framebuffer.height = m_pFrameBuffer->GetHeight();
+		framebuffer.ptr = (void*)(u64)s_pFrameBuffer->GetBuffer();
+		framebuffer.pitch = s_pFrameBuffer->GetPitch();
+		framebuffer.width = s_pFrameBuffer->GetWidth();
+		framebuffer.height = s_pFrameBuffer->GetHeight();
 	}
 
 	update_ticks = render_ticks = CTimer::GetClockTicks64();
+	odin_startup_runtime();
 
-	game_startup();
 	while (running)
 	{
 		for (int i = 0; m_USBHCI.UpdatePlugAndPlay() && i < MAX_GAMEPADS; i++) {

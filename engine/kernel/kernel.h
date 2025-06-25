@@ -31,6 +31,8 @@ public:
 
 	TShutdownMode Run (void);
 
+	static CBcmFrameBuffer *s_pFrameBuffer;
+
 private:
 	static void GamePadStatusHandler (unsigned nDeviceIndex, const TGamePadState *pState);
 	static void GamePadRemovedHandler (CDevice *pDevice, void *pContext);
@@ -42,7 +44,6 @@ private:
 	CUSBHCIDevice		m_USBHCI;
 	CEMMCDevice			m_EMMC;
 
-	CBcmFrameBuffer *m_pFrameBuffer;
 	CUSBGamePadDevice *volatile m_pGamePad[MAX_GAMEPADS];
 };
 

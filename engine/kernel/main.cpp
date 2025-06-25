@@ -1,16 +1,12 @@
 #include "kernel.h"
 #include <circle/startup.h>
 
-extern "C" void odin_startup_runtime(void);
-
 int main(void) {
 	CKernel Kernel;
 	if (!Kernel.Initialize()) {
 		halt();
 		return EXIT_HALT;
 	}
-
-	odin_startup_runtime();
 	
 	TShutdownMode ShutdownMode = Kernel.Run();
 	switch (ShutdownMode) {

@@ -1,6 +1,7 @@
 package framebuffer
 
 import "core:slice"
+import "base:runtime"
 
 Color :: struct #packed {
 	b, g, r, _: u8,
@@ -12,7 +13,7 @@ memory :: proc() -> []byte {
 }
 
 pixels :: proc() -> []Color {
-	return slice.reinterpret([]Color, memory())
+	return slice.reinterpret([]Color, intermediate_buffer)
 }
 
 put_pixel :: proc(x, y: int, c: Color) {
@@ -29,6 +30,13 @@ put_pixel :: proc(x, y: int, c: Color) {
 
 clear :: proc(color := Color{}) {
 	slice.fill(pixels(), color)
+}
+
+swap :: proc(vsync := false) {
+	if vsync {
+		kernel_wait_for_vsync()
+	}
+	runtime.copy_slice(memory(), intermediate_buffer)
 }
 
 geometry :: proc() -> (width, height, pitch: int) {
