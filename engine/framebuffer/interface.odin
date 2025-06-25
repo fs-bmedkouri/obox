@@ -2,7 +2,7 @@ package framebuffer
 
 import "core:slice"
 
-Pixel :: struct #packed {
+Color :: struct #packed {
 	r, g, b, _: u8,
 }
 
@@ -11,11 +11,11 @@ memory :: proc() -> []byte {
 	return slice.bytes_from_ptr(fb.ptr, int(fb.pitch * fb.height))
 }
 
-pixels :: proc() -> []Pixel {
-	return slice.reinterpret([]Pixel, memory())
+pixels :: proc() -> []Color {
+	return slice.reinterpret([]Color, memory())
 }
 
-put_pixel :: proc(x, y: int, c: Pixel) {
+put_pixel :: proc(x, y: int, c: Color) {
 	if x < 0 || y < 0 {
 		return
 	}
@@ -25,6 +25,10 @@ put_pixel :: proc(x, y: int, c: Pixel) {
 		return
 	}
 	pixels()[y * int(fb.pitch / 4) + x] = c
+}
+
+clear :: proc(color := Color{}) {
+	slice.fill(pixels(), color)
 }
 
 geometry :: proc() -> (width, height, pitch: int) {

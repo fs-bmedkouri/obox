@@ -6,7 +6,8 @@
 #include <fatfs/ff.h>
 
 FIL log_file = {0};
-bool running = true;
+bool running = TRUE;
+int last_asset_len = 0;
 
 struct fb_definition {
 	void *ptr;
@@ -32,7 +33,7 @@ extern "C" {
 	}
 
 	void kernel_halt() {
-		running = false;
+		running = FALSE;
 	}
 
 	void *kernel_alloc(size_t size) {
@@ -67,6 +68,35 @@ extern "C" {
 
 		return buttons;
 	}
+
+	void *kernel_load_asset(const char *path) {
+		FIL fp;
+		last_asset_len = 0;
+
+		if (f_open(&fp, path, FA_READ) != FR_OK)
+			return 0;
+
+		last_asset_len = (int)f_size(&fp);
+		if (last_asset_len < 0) {
+			last_asset_len = 0;
+			f_close(&fp);
+			return 0;
+		}
+
+		void *ptr = CMemorySystem::HeapAllocate(last_asset_len, HEAP_DEFAULT_NEW);
+		if (f_read(&fp, ptr, last_asset_len, 0) != FR_OK) {
+			last_asset_len = 0;
+			f_close(&fp);
+			return 0;
+		}
+
+		f_close(&fp);
+		return ptr;
+	}
+	
+	int kernel_load_asset_len() {
+		return last_asset_len;
+	}
 }
 
 CKernel::CKernel (void)
@@ -74,7 +104,7 @@ CKernel::CKernel (void)
 	m_USBHCI(&m_Interrupt, &m_Timer, TRUE),
 	m_EMMC(&m_Interrupt, &m_Timer, 0)
 {
-	m_pFrameBuffer = new CBcmFrameBuffer(m_Options.GetWidth(), m_Options.GetHeight(), 32);
+	m_pFrameBuffer = new CBcmFrameBuffer(m_Options.GetWidth(), m_Options.GetHeight(), 32, 0, 0, 0, TRUE);
 	if (!m_pFrameBuffer->Initialize()) {
 		delete m_pFrameBuffer;
 		m_pFrameBuffer = 0;
@@ -186,22 +216,18 @@ shutdown:
 	return ShutdownHalt;
 }
 
-void CKernel::GamePadStatusHandler (unsigned nDeviceIndex, const TGamePadState *pState)
-{
-	kernel_write_log("Gamepad input!\n");
+// NOTE: These two functions are called by the ISR so DON'T DO ANYTHING here. Just write the data!
 
+void CKernel::GamePadStatusHandler (unsigned nDeviceIndex, const TGamePadState *pState) {
 	gp_states[nDeviceIndex] = *pState;
 }
 
-void CKernel::GamePadRemovedHandler (CDevice *pDevice, void *pContext)
-{
+void CKernel::GamePadRemovedHandler (CDevice *pDevice, void *pContext) {
 	CKernel *pThis = (CKernel*)pContext;
-
 	for (int i = 0; i < MAX_GAMEPADS; i++) {
 		if (pThis->m_pGamePad[i] == (CUSBGamePadDevice*)pDevice) {
-			kernel_write_log("Gamepad removed!\n");
 			pThis->m_pGamePad[i] = 0;
-			break;
+			return;
 		}
 	}
 }
