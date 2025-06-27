@@ -1,6 +1,7 @@
 package game
 
 import "core:log"
+import "core:math/rand"
 import "core:time"
 import "core:slice"
 import fb "engine:framebuffer"
@@ -16,20 +17,43 @@ MAX_SNAKE_LENGTH :: GRID_WIDTH*GRID_WIDTH
 
 snake: [MAX_SNAKE_LENGTH]Vec2i // keep in mind that we need to use cell_size per snake square when rendering
 snake_length: int
-tick_timer: f32 = TICK_RATE
+tick_timer: f64 = TICK_RATE
 move_direction: Vec2i
 game_over: bool
 food_pos: Vec2i
 high_score: int
 
-SQUARE_SIZE :: 40
-SQUARE_SPEED :: 0.1
+// SQUARE_SIZE :: 40
+// SQUARE_SPEED :: 0.1
 
-square_pos := [2]f64{100, 100}
-bg_color_index: int
-square_color_index := 1
+// square_pos := [2]f64{100, 100}
+// bg_color_index: int
+// square_color_index := 1
 
 button_state: gamepad.Buttons
+
+place_food :: proc() {
+	occupied: [GRID_WIDTH][GRID_WIDTH]bool
+
+	for i in 0..<snake_length {
+		occupied[snake[i].x][snake[i].y] = true
+	}
+
+	free_cells := make([dynamic]Vec2i, context.temp_allocator)
+
+	for x in 0..<GRID_WIDTH {
+		for y in 0..<GRID_WIDTH {
+			if !occupied[x][y] {
+				append(&free_cells, Vec2i {x, y})
+			}
+		}
+	}
+
+	if len(free_cells) > 0 {
+		random_cell_index := rand.int_max(len(free_cells) - 1)
+		food_pos = free_cells[random_cell_index]
+	}
+}
 
 restart :: proc() {
 	start_head_pos := Vec2i { GRID_WIDTH / 2, GRID_WIDTH / 2 }
@@ -40,7 +64,7 @@ restart :: proc() {
 	snake_length = 3
 	move_direction = {0, 1}
 	game_over = false
-	// place_food()
+	place_food()
 }
 
 @(init)
@@ -56,6 +80,10 @@ initialize :: proc() {
 
 update :: proc(dt: time.Duration) {
 	buttons := gamepad.read(0)
+
+	s := time.duration_seconds(dt)
+	// Check if dt isn't already in seconds
+	log.infof("dt: %v\ns: %v", dt, s, "Update")
 
 	// ms := time.duration_milliseconds(dt)
 	switch {
@@ -88,7 +116,7 @@ update :: proc(dt: time.Duration) {
 			button_state = buttons
 		}
 	} else {
-		tick_timer -= dt
+		tick_timer -= s //dt - check if dt is in seconds or not
 	}
 
 	if tick_timer <= 0 {
@@ -128,11 +156,11 @@ update :: proc(dt: time.Duration) {
 			next_part_pos = cur_pos
 		}
 
-		// if head_pos == food_pos {
-		// 	snake_length += 1
-		// 	snake[snake_length - 1] = next_part_pos
-		// 	place_food()
-		// }
+		if head_pos == food_pos {
+			snake_length += 1
+			snake[snake_length - 1] = next_part_pos
+			place_food()
+		}
 
 		tick_timer = TICK_RATE + tick_timer
 	}
