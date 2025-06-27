@@ -3,7 +3,6 @@ package game
 import "core:log"
 import "core:math/rand"
 import "core:time"
-import "core:slice"
 import fb "engine:framebuffer"
 import "engine:gamepad"
 
@@ -15,7 +14,7 @@ TICK_RATE :: 0.13
 Vec2i :: [2]int
 MAX_SNAKE_LENGTH :: GRID_WIDTH*GRID_WIDTH
 
-snake: [MAX_SNAKE_LENGTH]Vec2i // keep in mind that we need to use cell_size per snake square when rendering
+snake: [MAX_SNAKE_LENGTH]Vec2i
 snake_length: int
 tick_timer: f64 = TICK_RATE
 move_direction: Vec2i
@@ -23,12 +22,8 @@ game_over: bool
 food_pos: Vec2i
 high_score: int
 
-// SQUARE_SIZE :: 40
-// SQUARE_SPEED :: 0.1
-
-// square_pos := [2]f64{100, 100}
-// bg_color_index: int
-// square_color_index := 1
+bg_color_index: int
+snake_color_index := 1
 
 button_state: gamepad.Buttons
 
@@ -85,20 +80,25 @@ update :: proc(dt: time.Duration) {
 	// Check if dt isn't already in seconds
 	log.infof("dt: %v\ns: %v", dt, s, "Update")
 
-	// ms := time.duration_milliseconds(dt)
 	switch {
 	case .LEFT in buttons:
 		move_direction = {0, -1}
-		// square_pos[0] -= SQUARE_SPEED * ms
 	case .RIGHT in buttons:
 		move_direction = {0, 1}
-		// square_pos[0] += SQUARE_SPEED * ms
 	case .UP in buttons:
 		move_direction = {-1, 0}
-		// square_pos[1] -= SQUARE_SPEED * ms
 	case .DOWN in buttons:
 		move_direction = {1, 0}
-		// square_pos[1] += SQUARE_SPEED * ms
+	}
+
+	if buttons != button_state {
+		log.info("Gamepad button state: ", buttons)
+		switch {
+			case .B in buttons:
+				bg_color_index += 1
+			case .Y in buttons:
+				snake_color_index += 1
+		}
 	}
 
 	if game_over {
@@ -106,13 +106,6 @@ update :: proc(dt: time.Duration) {
 			if .A in buttons {
 				restart()
 			}
-			// log.info("Gamepad button state: ", buttons)
-			// switch {
-			// 	case .A in buttons:
-			// 		square_color_index += 1
-			// 	case .B in buttons:
-			// 		bg_color_index += 1
-			// }
 			button_state = buttons
 		}
 	} else {
@@ -167,24 +160,23 @@ update :: proc(dt: time.Duration) {
 }
 
 render :: proc() {
-	// colors := [4]fb.Color{
-	// 	{0xFF, 0xFF, 0xFF, 0},
-	// 	{0x00, 0x00, 0xFF, 0},
-	// 	{0xFF, 0x00, 0xFF, 0},
-	// 	{0xFF, 0xFF, 0x00, 0},
-	// }
-
-	slice.fill
+	colors := [4]fb.Color{
+		{0xFF, 0xFF, 0xFF, 0},
+		{0x00, 0x00, 0xFF, 0},
+		{0xFF, 0x00, 0xFF, 0},
+		{0xFF, 0xFF, 0x00, 0},
+	}
 
 	fb.clear(colors[bg_color_index % len(colors)])
 
 	// snake rendering here:
-
-	// for y := 0; y < SQUARE_SIZE; y += 1 {
-	// 	for x := 0; x < SQUARE_SIZE; x += 1 {
-	// 		fb.put_pixel(int(square_pos[0]) + x, int(square_pos[1]) + y, colors[square_color_index % len(colors)])
-	// 	}
-	// }
+	for i in 0..<snake_length {
+		for y in 0..<CELL_SIZE {
+			for x in 0..<CELL_SIZE {
+				fb.put_pixel(snake[i].x + x, snake[i].y + y, colors[snake_color_index % len(colors)])
+			}
+		}
+	}
 
 	fb.swap()
 }

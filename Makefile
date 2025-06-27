@@ -5,7 +5,7 @@ MKPATH = $(dir $(realpath $(lastword $(MAKEFILE_LIST))))
 CIRCLEHOME = "$(MKPATH)"/.cache/circle
 TOOLPATH = "$(PATH)":"$(MKPATH)"/.cache/toolchain/bin
 
-GAME ?= sample
+GAME ?= snake
 RPI ?= 3
 ODIN_VET ?= -vet-semicolon -vet-shadowing -vet-style -vet-tabs -vet-unused
 
